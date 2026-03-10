@@ -288,6 +288,24 @@ export class ClawWatchDB {
       .all() as Record<string, unknown>[];
   }
 
+  getSessions(opts: { status?: string; limit?: number } = {}): Record<string, unknown>[] {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (opts.status) {
+      conditions.push('status = ?');
+      params.push(opts.status);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = opts.limit ?? 50;
+    params.push(limit);
+
+    return this.db
+      .prepare(`SELECT * FROM sessions ${where} ORDER BY started_at DESC LIMIT ?`)
+      .all(...params) as Record<string, unknown>[];
+  }
+
   getLlmCallsBySession(sessionId: string): Record<string, unknown>[] {
     return this.db
       .prepare(`SELECT * FROM llm_calls WHERE session_id = ? ORDER BY timestamp ASC`)
