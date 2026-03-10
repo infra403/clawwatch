@@ -3,26 +3,31 @@
   "version": "0.1.0",
   "type": "module",
   "description": "ClawWatch engine — AI Agent efficiency monitor analysis engine",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/infra403/clawwatch.git",
+    "directory": "packages/engine"
+  },
   "bin": {
     "clawwatch-engine": "./dist/index.js"
   },
-  "files": ["dist", "package.json"],
+  "files": ["dist"],
   "exports": {
     ".": {
-      "import": "./src/index.ts",
-      "types": "./src/index.ts"
-    },
-    "./*": {
-      "import": "./src/*.ts",
-      "types": "./src/*.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --banner.js '#!/usr/bin/env node'",
+    "build": "tsup",
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
-    "@clawwatch/shared": "workspace:*",
+    "@clawwatch/shared": "workspace:^",
     "@fastify/cors": "^10.0.0",
     "@fastify/static": "^9.0.0",
     "better-sqlite3": "^11.0.0",

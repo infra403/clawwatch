@@ -39,7 +39,7 @@ export interface ToolCallEvent {
   durationMs: number;
 }
 
-export interface PluginEvent {
+export interface LegacyPluginEvent {
   type: 'plugin_event';
   sessionId: string;
   timestamp: number;
@@ -52,7 +52,7 @@ export type IpcEvent =
   | SessionEndEvent
   | LlmCallEvent
   | ToolCallEvent
-  | PluginEvent;
+  | LegacyPluginEvent;
 
 // ---------------------------------------------------------------------------
 // Command types (engine -> plugin / client)

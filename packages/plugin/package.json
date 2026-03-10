@@ -3,19 +3,27 @@
   "version": "0.1.0",
   "type": "module",
   "description": "ClawWatch OpenClaw plugin — AI Agent efficiency monitor",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/infra403/clawwatch.git",
+    "directory": "packages/plugin"
+  },
   "openclaw": {
-    "extensions": ["src/index.ts"]
+    "extensions": ["dist/index.js"]
   },
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
-    "./*": { "import": "./dist/*.js", "types": "./dist/*.d.ts" }
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
   },
-  "files": ["dist", "openclaw.plugin.json", "package.json"],
+  "files": ["dist", "openclaw.plugin.json"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts"
+    "build": "tsup src/index.ts src/plugin.ts src/socket-client.ts src/rule-engine.ts src/budget-enforcer.ts src/interceptors.ts --format esm --dts"
   },
   "dependencies": {
-    "@clawwatch/shared": "workspace:*"
+    "@clawwatch/shared": "workspace:^"
   },
   "devDependencies": {
     "tsup": "^8.0.0"

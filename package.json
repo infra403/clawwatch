@@ -13,7 +13,8 @@
     "dev:engine": "pnpm --filter @clawwatch/engine dev",
     "dev:dashboard": "pnpm --filter @clawwatch/dashboard dev",
     "test": "vitest run",
-    "start": "node packages/engine/dist/index.js"
+    "start": "node packages/engine/dist/index.js",
+    "publish:all": "pnpm build && pnpm -r publish --no-git-checks"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
