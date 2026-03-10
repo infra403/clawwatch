@@ -1,0 +1,14 @@
+{
+  "name": "@clawwatch/shared",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": { "import": "./src/index.ts", "types": "./src/index.ts" }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
+  }
+}
