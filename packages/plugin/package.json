@@ -2,15 +2,17 @@
   "name": "@clawwatch/plugin",
   "version": "0.1.0",
   "type": "module",
-  "exports": {
-    ".": { "import": "./src/index.ts", "types": "./src/index.ts" },
-    "./rule-engine": { "import": "./src/rule-engine.ts", "types": "./src/rule-engine.ts" },
-    "./socket-client": { "import": "./src/socket-client.ts", "types": "./src/socket-client.ts" },
-    "./interceptors": { "import": "./src/interceptors.ts", "types": "./src/interceptors.ts" },
-    "./budget-enforcer": { "import": "./src/budget-enforcer.ts", "types": "./src/budget-enforcer.ts" }
+  "description": "ClawWatch OpenClaw plugin — AI Agent efficiency monitor",
+  "openclaw": {
+    "extensions": ["src/index.ts"]
   },
+  "exports": {
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
+    "./*": { "import": "./dist/*.js", "types": "./dist/*.d.ts" }
+  },
+  "files": ["dist", "openclaw.plugin.json", "package.json"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm"
+    "build": "tsup src/index.ts --format esm --dts"
   },
   "dependencies": {
     "@clawwatch/shared": "workspace:*"

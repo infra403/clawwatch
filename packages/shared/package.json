@@ -2,6 +2,8 @@
   "name": "@clawwatch/shared",
   "version": "0.1.0",
   "type": "module",
+  "description": "ClawWatch shared types and utilities",
+  "files": ["dist", "src", "package.json"],
   "exports": {
     ".": { "import": "./src/index.ts", "types": "./src/index.ts" }
   },

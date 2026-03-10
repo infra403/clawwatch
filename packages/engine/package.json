@@ -2,6 +2,11 @@
   "name": "@clawwatch/engine",
   "version": "0.1.0",
   "type": "module",
+  "description": "ClawWatch engine — AI Agent efficiency monitor analysis engine",
+  "bin": {
+    "clawwatch-engine": "./dist/index.js"
+  },
+  "files": ["dist", "package.json"],
   "exports": {
     ".": {
       "import": "./src/index.ts",
@@ -13,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm",
+    "build": "tsup src/index.ts --format esm --banner.js '#!/usr/bin/env node'",
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {

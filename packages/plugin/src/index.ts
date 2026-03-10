@@ -1,15 +1,5 @@
-import type { EngineCommand, Detection } from '@clawwatch/shared';
-import { SocketClient } from './socket-client.js';
-import { QuickRuleEngine } from './rule-engine.js';
-import { BudgetEnforcer } from './budget-enforcer.js';
-import {
-  makeSessionStartEvent,
-  makeSessionEndEvent,
-  makeToolCallEvent,
-  makeLlmCallEvent,
-  hashArguments,
-} from './interceptors.js';
-
+// Re-export for direct usage
+export { ClawWatchPlugin } from './plugin.js';
 export { SocketClient } from './socket-client.js';
 export { QuickRuleEngine } from './rule-engine.js';
 export { BudgetEnforcer } from './budget-enforcer.js';
@@ -22,170 +12,102 @@ export {
 } from './interceptors.js';
 
 /**
- * Main plugin class that OpenClaw would instantiate and call.
+ * OpenClaw plugin definition.
  *
- * Lifecycle:
- *   const plugin = new ClawWatchPlugin();
- *   await plugin.activate();
- *   // ... interceptors fire ...
- *   await plugin.deactivate();
+ * Exports a default object with `register(api)` that wires ClawWatch hooks
+ * into the OpenClaw lifecycle: session_start, before_tool_call, after_tool_call,
+ * session_end, and message_received.
  */
-export class ClawWatchPlugin {
-  readonly socketClient: SocketClient;
-  readonly ruleEngine: QuickRuleEngine;
-  readonly budgetEnforcer: BudgetEnforcer;
+const plugin = {
+  id: 'clawwatch',
+  name: 'ClawWatch',
+  description: 'AI Agent efficiency monitor',
+  version: '0.1.0',
 
-  private detectionCallback: ((detection: Detection) => void) | null = null;
-
-  constructor(socketPath?: string) {
-    this.socketClient = new SocketClient(socketPath);
-    this.ruleEngine = new QuickRuleEngine();
-    this.budgetEnforcer = new BudgetEnforcer();
-  }
-
-  /**
-   * Register a callback that fires whenever a detection is produced
-   * (either from the in-plugin rule engine or from the Engine).
-   */
-  onDetection(cb: (detection: Detection) => void): void {
-    this.detectionCallback = cb;
-  }
-
-  /**
-   * Start the plugin: connect socket and wire up command handling.
-   */
-  activate(): void {
-    this.socketClient.onCommand((cmd: EngineCommand) => {
-      this.handleCommand(cmd);
-    });
-    this.socketClient.connect();
-  }
-
-  /**
-   * Stop the plugin: disconnect socket and clean up.
-   */
-  deactivate(): void {
-    this.socketClient.disconnect();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Interceptor callbacks — OpenClaw would wire these into its hook system
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Message interceptor: fires when a new user message arrives.
-   * Marks session start if needed.
-   */
-  onMessage(msg: {
-    sessionId: string;
-    modelId: string;
-    provider: string;
-    content: string;
-    isFirst?: boolean;
-  }): void {
-    if (msg.isFirst) {
-      const event = makeSessionStartEvent({
-        sessionId: msg.sessionId,
-        modelId: msg.modelId,
-        provider: msg.provider,
-        initialPrompt: msg.content,
-      });
-      this.socketClient.send(event as unknown as Record<string, unknown>);
-    }
-  }
-
-  /**
-   * Tool argument interceptor: fires before tool execution.
-   * Runs quick rule engine check and forwards event.
-   */
-  onToolArg(data: {
-    sessionId: string;
-    toolName: string;
-    args: unknown;
-  }): Detection | null {
-    const argsHash = hashArguments(data.args);
-    const detection = this.ruleEngine.recordToolCall(
-      data.sessionId,
-      data.toolName,
-      argsHash,
+  register(api: any) {
+    // Dynamic import to keep top-level clean (ESM)
+    const instancePromise = import('./plugin.js').then(
+      ({ ClawWatchPlugin }) => new ClawWatchPlugin(),
     );
-    if (detection) {
-      this.socketClient.send(detection as unknown as Record<string, unknown>);
-      this.detectionCallback?.(detection);
-    }
-    return detection;
-  }
 
-  /**
-   * Tool result interceptor: fires after tool execution.
-   * Forwards tool call event to Engine.
-   */
-  onToolResult(data: {
-    sessionId: string;
-    toolName: string;
-    args: unknown;
-    resultSummary: string;
-    durationMs: number;
-  }): void {
-    const event = makeToolCallEvent({
-      sessionId: data.sessionId,
-      toolName: data.toolName,
-      args: data.args,
-      resultSummary: data.resultSummary,
-      durationMs: data.durationMs,
+    let instance: Awaited<typeof instancePromise> | null = null;
+
+    // Eagerly resolve — plugin.ts is in the same bundle so this is essentially sync
+    void instancePromise.then((i) => {
+      instance = i;
     });
-    this.socketClient.send(event as unknown as Record<string, unknown>);
-  }
 
-  /**
-   * LLM call result interceptor: fires after an LLM response.
-   */
-  onLlmResult(data: {
-    sessionId: string;
-    modelId: string;
-    inputTokens: number;
-    outputTokens: number;
-    costUsd: number;
-    latencyMs: number;
-  }): void {
-    const event = makeLlmCallEvent(data);
-    this.socketClient.send(event as unknown as Record<string, unknown>);
-  }
+    // Register as service (manages Engine lifecycle)
+    api.registerService({
+      id: 'clawwatch-engine',
+      start: async () => {
+        instance = await instancePromise;
+        instance.activate();
+        api.logger?.info?.('ClawWatch activated — monitoring agent efficiency');
+      },
+      stop: async () => {
+        instance?.deactivate();
+        api.logger?.info?.('ClawWatch deactivated');
+      },
+    });
 
-  /**
-   * Session end interceptor.
-   */
-  onSessionEnd(sessionId: string): void {
-    const event = makeSessionEndEvent(sessionId);
-    this.socketClient.send(event as unknown as Record<string, unknown>);
-    this.ruleEngine.clearSession(sessionId);
-    this.budgetEnforcer.clearSession(sessionId);
-  }
+    // Session start
+    api.on('session_start', (event: any, ctx: any) => {
+      instance?.onMessage({
+        sessionId: ctx.sessionId ?? event.sessionId,
+        modelId: 'unknown', // resolved on first LLM call
+        provider: 'unknown',
+        content: '',
+        isFirst: true,
+      });
+    });
 
-  /**
-   * before_model_resolve hook — returns a rejection message if budget exceeded,
-   * or null to allow the call to proceed.
-   */
-  beforeModelResolve(sessionId: string): string | null {
-    const exceeded = this.budgetEnforcer.check(sessionId);
-    if (exceeded) {
-      return `Budget exceeded for session ${sessionId}: spent $${exceeded.spent.toFixed(2)} of $${exceeded.budget.toFixed(2)} limit. Override with budgetEnforcer.override().`;
-    }
-    return null;
-  }
+    // Message received — capture initial prompt for task drift baseline
+    api.on('message_received', (_event: any, _ctx: any) => {
+      // The first message_received in a session carries the user's prompt.
+      // Future: store it for task drift baseline analysis.
+    });
 
-  // ---------------------------------------------------------------------------
-  // Internal
-  // ---------------------------------------------------------------------------
+    // Before tool call — quick rule engine check + budget gate
+    api.on('before_tool_call', (event: any, ctx: any) => {
+      if (!instance) return;
 
-  private handleCommand(cmd: EngineCommand): void {
-    switch (cmd.type) {
-      case 'budget_exceeded':
-        this.budgetEnforcer.markExceeded(cmd);
-        break;
-      case 'detection_alert':
-        this.detectionCallback?.(cmd.detection);
-        break;
-    }
-  }
-}
+      const detection = instance.onToolArg({
+        sessionId: ctx.sessionKey ?? '',
+        toolName: event.toolName,
+        args: event.params,
+      });
+
+      // Budget check
+      const budgetBlock = instance.beforeModelResolve(ctx.sessionKey ?? '');
+      if (budgetBlock) {
+        return { block: true, blockReason: budgetBlock };
+      }
+
+      if (detection) {
+        return { block: false }; // Don't block, just record
+      }
+    });
+
+    // After tool call — capture result and forward
+    api.on('after_tool_call', (event: any, ctx: any) => {
+      instance?.onToolResult({
+        sessionId: ctx.sessionKey ?? '',
+        toolName: event.toolName,
+        args: event.params,
+        resultSummary:
+          typeof event.result === 'string'
+            ? event.result.slice(0, 200)
+            : JSON.stringify(event.result).slice(0, 200),
+        durationMs: event.durationMs ?? 0,
+      });
+    });
+
+    // Session end
+    api.on('session_end', (event: any, ctx: any) => {
+      instance?.onSessionEnd(ctx.sessionId ?? event.sessionId);
+    });
+  },
+};
+
+export default plugin;
