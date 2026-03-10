@@ -55,13 +55,28 @@ async function main(): Promise<void> {
   const address = await api.start(config.dashboardPort);
   console.log('[engine] API server listening on', address);
 
-  // 7. Watch config for changes
+  // 7. Watch config for changes (hot reload detectors)
   const stopWatching = watchConfig(CONFIG_PATH, (newConfig) => {
     console.log('[engine] Config file changed, reloading');
     Object.assign(config, newConfig);
+    pipeline.recreateDetectors();
+    console.log('[engine] Detectors re-created from new config');
   });
 
-  // 8. Stall check timer — check for stalled sessions every 30 seconds
+  // 8. Data retention cleanup
+  const retentionDays = 30;
+  const runRetention = () => {
+    const result = db.deleteOlderThan(retentionDays);
+    if (result.deletedSessions > 0 || result.deletedDetections > 0) {
+      console.log(
+        `[engine] Retention cleanup: deleted ${result.deletedSessions} sessions, ${result.deletedDetections} detections`,
+      );
+    }
+  };
+  runRetention();
+  const retentionTimer = setInterval(runRetention, 86400000);
+
+  // 9. Stall check timer — check for stalled sessions every 30 seconds
   const stallTimer = setInterval(() => {
     const activeSessions = db.getActiveSessions();
     const now = Date.now();
@@ -74,10 +89,11 @@ async function main(): Promise<void> {
     }
   }, 30_000);
 
-  // 9. Graceful shutdown
+  // 10. Graceful shutdown
   const shutdown = async () => {
     console.log('[engine] Shutting down...');
     clearInterval(stallTimer);
+    clearInterval(retentionTimer);
     stopWatching();
     socketServer.stop();
     await api.stop();

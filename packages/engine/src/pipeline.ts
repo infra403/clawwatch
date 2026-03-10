@@ -47,6 +47,13 @@ export class Pipeline {
     this.detectors = createDetectors(opts.config);
   }
 
+  /** Re-create detectors when config changes (hot reload) */
+  recreateDetectors(): void {
+    this.detectors = createDetectors(this.config);
+    this.budgetGuardian = new BudgetGuardian(this.config.budget);
+    this.costCalc = new CostCalculator(this.config.pricingOverrides);
+  }
+
   process(event: PluginEvent): void {
     switch (event.type) {
       case 'session_start':

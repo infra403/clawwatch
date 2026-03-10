@@ -1,5 +1,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import type { ClawWatchConfig } from '@clawwatch/shared';
 import type { ClawWatchDB } from '../db.js';
 import { registerRoutes, broadcastSSE } from './routes.js';
@@ -38,6 +42,26 @@ export function createApiServer(opts: ApiServerOptions): ApiServer {
     },
     sseClients,
   });
+
+  // Serve dashboard static files in production
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const dashboardDist = join(__dirname, '../../../dashboard/dist');
+  if (existsSync(dashboardDist)) {
+    app.register(fastifyStatic, {
+      root: dashboardDist,
+      prefix: '/',
+      wildcard: false, // Let API routes take precedence
+    });
+
+    // SPA fallback for client-side routing
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith('/api/')) {
+        reply.status(404).send({ error: 'Not found' });
+      } else {
+        reply.sendFile('index.html');
+      }
+    });
+  }
 
   return {
     app,

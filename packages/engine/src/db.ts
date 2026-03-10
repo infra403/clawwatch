@@ -350,6 +350,28 @@ export class ClawWatchDB {
     };
   }
 
+  deleteOlderThan(days: number): { deletedSessions: number; deletedDetections: number } {
+    const cutoff = Date.now() - days * 86400000;
+
+    const detResult = this.db
+      .prepare(`DELETE FROM detections WHERE timestamp < ?`)
+      .run(cutoff);
+    const toolResult = this.db
+      .prepare(`DELETE FROM tool_calls WHERE timestamp < ?`)
+      .run(cutoff);
+    const llmResult = this.db
+      .prepare(`DELETE FROM llm_calls WHERE timestamp < ?`)
+      .run(cutoff);
+    const sessResult = this.db
+      .prepare(`DELETE FROM sessions WHERE started_at < ? AND status != 'active'`)
+      .run(cutoff);
+
+    return {
+      deletedSessions: sessResult.changes,
+      deletedDetections: detResult.changes,
+    };
+  }
+
   close(): void {
     this.db.close();
   }
