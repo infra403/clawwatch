@@ -138,6 +138,21 @@ export interface LlmCallPluginEvent {
   latency_ms: number;
 }
 
+export interface SessionStartPluginEvent {
+  type: 'session_start';
+  session_id: string;
+  timestamp: number;
+  model_id: string;
+  provider: string;
+  initial_prompt?: string;
+}
+
+export interface SessionEndPluginEvent {
+  type: 'session_end';
+  session_id: string;
+  timestamp: number;
+}
+
 export interface GenericPluginEvent {
   type: string;
   session_id: string;
@@ -145,7 +160,12 @@ export interface GenericPluginEvent {
   [key: string]: unknown;
 }
 
-export type PluginEvent = ToolCallPluginEvent | LlmCallPluginEvent | GenericPluginEvent;
+export type PluginEvent =
+  | ToolCallPluginEvent
+  | LlmCallPluginEvent
+  | SessionStartPluginEvent
+  | SessionEndPluginEvent
+  | GenericPluginEvent;
 
 // ---------------------------------------------------------------------------
 // Session context (v2)
