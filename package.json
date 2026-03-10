@@ -1,0 +1,16 @@
+{
+  "name": "clawwatch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "dev:engine": "pnpm --filter @clawwatch/engine dev",
+    "dev:dashboard": "pnpm --filter @clawwatch/dashboard dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
