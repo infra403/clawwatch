@@ -1,0 +1,21 @@
+{
+  "name": "@clawwatch/plugin",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": { "import": "./src/index.ts", "types": "./src/index.ts" },
+    "./rule-engine": { "import": "./src/rule-engine.ts", "types": "./src/rule-engine.ts" },
+    "./socket-client": { "import": "./src/socket-client.ts", "types": "./src/socket-client.ts" },
+    "./interceptors": { "import": "./src/interceptors.ts", "types": "./src/interceptors.ts" },
+    "./budget-enforcer": { "import": "./src/budget-enforcer.ts", "types": "./src/budget-enforcer.ts" }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm"
+  },
+  "dependencies": {
+    "@clawwatch/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0"
+  }
+}

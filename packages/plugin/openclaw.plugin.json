@@ -1,0 +1,7 @@
+{
+  "name": "clawwatch",
+  "version": "0.1.0",
+  "description": "AI Agent efficiency monitor — detect slacking, track costs, optimize spending",
+  "type": "service",
+  "entry": "dist/index.js"
+}
