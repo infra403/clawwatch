@@ -10,12 +10,12 @@ export const DEFAULT_CONFIG: ClawWatchConfig = {
     alertThreshold: 0.8,
   },
   detectors: {
-    enabled: true,
-    spinLoopThreshold: 5,
-    toolThrashThreshold: 10,
-    costSpikeMultiplier: 3,
-    contextBloatThreshold: 150000,
-    runawaySessionMinutes: 60,
+    loop_spinning: { enabled: true, window_seconds: 60, min_repeats: 3 },
+    token_bloat: { enabled: true, ratio_multiplier: 2 },
+    stalling: { enabled: true, timeout_seconds: 30 },
+    tool_abuse: { enabled: true, max_calls_per_minute: 5 },
+    task_drift: { enabled: true, similarity_threshold: 0.3 },
+    model_mismatch: { enabled: true, cost_complexity_ratio: 10 },
   },
   pricingOverrides: {},
 };

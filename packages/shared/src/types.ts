@@ -74,10 +74,10 @@ export interface DetectionAlertCommand {
 export type EngineCommand = BudgetExceededCommand | DetectionAlertCommand;
 
 // ---------------------------------------------------------------------------
-// Detection types
+// Detection types (legacy)
 // ---------------------------------------------------------------------------
 
-export type DetectorType =
+export type LegacyDetectorType =
   | 'spin_loop'
   | 'tool_thrash'
   | 'cost_spike'
@@ -87,21 +87,99 @@ export type DetectorType =
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 
+// ---------------------------------------------------------------------------
+// Detector types (v2)
+// ---------------------------------------------------------------------------
+
+export type DetectorType =
+  | 'loop_spinning'
+  | 'token_bloat'
+  | 'stalling'
+  | 'tool_abuse'
+  | 'task_drift'
+  | 'model_mismatch';
+
+export type DetectionSeverity = 'info' | 'warning' | 'critical';
+
 export interface Detection {
   id: string;
-  sessionId: string;
-  detectorType: DetectorType;
-  severity: Severity;
+  session_id: string;
   timestamp: number;
-  message: string;
-  metadata: Record<string, unknown>;
+  detector_type: DetectorType;
+  severity: DetectionSeverity;
+  description: string;
+  evidence: Record<string, unknown>;
+  tokens_wasted?: number;
+  cost_wasted_usd?: number;
 }
 
 // ---------------------------------------------------------------------------
-// Session context
+// Plugin event types (v2)
+// ---------------------------------------------------------------------------
+
+export interface ToolCallPluginEvent {
+  type: 'tool_call';
+  session_id: string;
+  timestamp: number;
+  tool_name: string;
+  arguments_hash: string;
+  result_summary: string;
+  duration_ms: number;
+}
+
+export interface LlmCallPluginEvent {
+  type: 'llm_call';
+  session_id: string;
+  timestamp: number;
+  model_id: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  latency_ms: number;
+}
+
+export interface GenericPluginEvent {
+  type: string;
+  session_id: string;
+  timestamp: number;
+  [key: string]: unknown;
+}
+
+export type PluginEvent = ToolCallPluginEvent | LlmCallPluginEvent | GenericPluginEvent;
+
+// ---------------------------------------------------------------------------
+// Session context (v2)
 // ---------------------------------------------------------------------------
 
 export interface SessionContext {
+  session_id: string;
+  started_at: number;
+  initial_prompt?: string;
+  model_id: string;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cost_usd: number;
+  recent_tool_calls: ToolCallPluginEvent[];
+  recent_llm_calls: LlmCallPluginEvent[];
+  last_event_timestamp: number;
+}
+
+// ---------------------------------------------------------------------------
+// Detector interface (v2)
+// ---------------------------------------------------------------------------
+
+export interface Detector {
+  name: DetectorType;
+  type: 'rule' | 'heuristic';
+  defaultEnabled: boolean;
+  analyze(event: PluginEvent, context: SessionContext): Detection | null;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy session context
+// ---------------------------------------------------------------------------
+
+export interface LegacySessionContext {
   sessionId: string;
   startTime: number;
   pid: number;
@@ -116,12 +194,12 @@ export interface SessionContext {
 }
 
 // ---------------------------------------------------------------------------
-// Detector interface
+// Legacy detector interface
 // ---------------------------------------------------------------------------
 
-export interface Detector {
-  type: DetectorType;
-  analyze(event: IpcEvent, context: SessionContext): Detection | null;
+export interface LegacyDetector {
+  type: LegacyDetectorType;
+  analyze(event: IpcEvent, context: LegacySessionContext): Detection | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +226,53 @@ export interface DetectorConfig {
   runawaySessionMinutes: number;
 }
 
+// ---------------------------------------------------------------------------
+// Per-detector configs (v2)
+// ---------------------------------------------------------------------------
+
+export interface LoopSpinningConfig {
+  enabled: boolean;
+  window_seconds: number;
+  min_repeats: number;
+}
+
+export interface TokenBloatConfig {
+  enabled: boolean;
+  ratio_multiplier: number;
+}
+
+export interface StallingConfig {
+  enabled: boolean;
+  timeout_seconds: number;
+}
+
+export interface ToolAbuseConfig {
+  enabled: boolean;
+  max_calls_per_minute: number;
+}
+
+export interface TaskDriftConfig {
+  enabled: boolean;
+  similarity_threshold: number;
+}
+
+export interface ModelMismatchConfig {
+  enabled: boolean;
+  cost_complexity_ratio: number;
+}
+
+export interface DetectorsConfig {
+  loop_spinning: LoopSpinningConfig;
+  token_bloat: TokenBloatConfig;
+  stalling: StallingConfig;
+  tool_abuse: ToolAbuseConfig;
+  task_drift: TaskDriftConfig;
+  model_mismatch: ModelMismatchConfig;
+}
+
 export interface ClawWatchConfig {
   dashboardPort: number;
   budget: BudgetConfig;
-  detectors: DetectorConfig;
+  detectors: DetectorsConfig;
   pricingOverrides: Record<string, ModelPricingOverride>;
 }
